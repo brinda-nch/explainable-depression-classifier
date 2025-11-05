@@ -1,0 +1,7 @@
+{
+  "seed": 42,
+  "model_name": "distilbert-base-uncased",
+  "batch_size": 16,
+  "learning_rate": 2e-05,
+  "epochs": 3
+}

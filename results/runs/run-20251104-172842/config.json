@@ -1,0 +1,13 @@
+{
+  "seed": 42,
+  "dataset_path": "data/processed/user_level_ds_hf",
+  "max_features": 50000,
+  "ngram_range": [
+    1,
+    2
+  ],
+  "min_df": 2,
+  "max_iter": 2000,
+  "C": 1.0,
+  "class_weight": "balanced"
+}
