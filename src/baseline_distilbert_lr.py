@@ -191,8 +191,9 @@ def main():
         learning_rate=2e-5,
         weight_decay=0.01,
         eval_strategy="epoch",  # Updated from evaluation_strategy
-        save_strategy="no",
-        load_best_model_at_end=False,
+        save_strategy="epoch",  # Changed from "no" to save model
+        load_best_model_at_end=True,  # Changed to True to keep best checkpoint
+        metric_for_best_model="eval_f1_macro",  # Use F1 to select best model
         logging_steps=50,
         report_to=[],
         fp16=use_gpu,  # Use fp16 on GPU for speed
@@ -241,6 +242,11 @@ def main():
     Path(CKPT_DIR).mkdir(parents=True, exist_ok=True)
     with open(Path(CKPT_DIR, "metrics_val.json"), "w") as f:
         json.dump(metrics, f, indent=2)
+    
+    # Explicitly save model and tokenizer
+    model.save_pretrained(CKPT_DIR)
+    tok.save_pretrained(CKPT_DIR)
+    print(f"[OK] Model and tokenizer saved to {CKPT_DIR}")
 
     print("[OK] DistilBERT baseline trained and evaluated.")
     print(f"[OK] Results row appended to {TABLES_PATH}")

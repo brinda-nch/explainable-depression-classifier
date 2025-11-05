@@ -62,36 +62,54 @@ def save_attention_heatmaps(att_avg: np.ndarray, tokens: List[str], out_path: Pa
 # Integrated Gradients (Captum)
 # -----------------------------
 class WrappedForIG(torch.nn.Module):
-    """Wrap model forward to return class logit for IG."""
+    """Wrap model forward to accept embeddings and return class logit for IG."""
     def __init__(self, model):
         super().__init__()
         self.model = model
 
-    def forward(self, input_ids, attention_mask):
-        out = self.model(input_ids=input_ids, attention_mask=attention_mask, output_hidden_states=False)
+    def forward(self, inputs_embeds):
+        # attention_mask will be passed via additional_forward_args
+        out = self.model(inputs_embeds=inputs_embeds, output_hidden_states=False)
         # logit for class 1
         return out.logits[:, 1]
 
 
 def integrated_gradients_scores(model, tokenizer, text: str, steps=32, device="cpu") -> Tuple[np.ndarray, List[str]]:
+    """
+    Compute IG attributions with respect to embeddings (not token IDs).
+    This avoids the 'Expected Long/Int but got Float' error.
+    """
     model.eval()
     enc = tokenizer(text, return_tensors="pt", truncation=True, max_length=256)
     enc = {k: v.to(device) for k, v in enc.items()}
+    
+    # Get embeddings from the model
+    # For DistilBERT: model.distilbert.embeddings.word_embeddings
+    embeddings_layer = model.distilbert.embeddings.word_embeddings
+    
+    # Detach and clone to make it a leaf tensor, then enable gradients
+    with torch.no_grad():
+        input_embeddings = embeddings_layer(enc["input_ids"]).detach().clone()
+        baseline_ids = torch.full_like(enc["input_ids"], tokenizer.pad_token_id)
+        baseline_embeddings = embeddings_layer(baseline_ids).detach().clone()
+    
+    # Now we can set requires_grad on leaf tensors
+    input_embeddings.requires_grad = True
+    
     wrapper = WrappedForIG(model)
-
-    # Baseline: pad token ids (all [PAD]) of same shape
-    baseline_ids = torch.full_like(enc["input_ids"], tokenizer.pad_token_id)
-    baseline_mask = torch.zeros_like(enc["attention_mask"])
-
     ig = IntegratedGradients(wrapper)
+    
+    # Only compute gradients w.r.t. embeddings, not attention_mask
+    # Pass attention_mask as additional_forward_args if needed
     attributions = ig.attribute(
-        inputs=(enc["input_ids"], enc["attention_mask"]),
-        baselines=(baseline_ids, baseline_mask),
+        inputs=input_embeddings,
+        baselines=baseline_embeddings,
         n_steps=steps,
     )
-    # token-level scalar score = |attr| on input_ids (sum over embedding dims is handled internally)
-    # Captum returns tuple aligned with inputs; we take first tensor (for input_ids)
-    token_scores = attributions[0].detach().abs().sum(dim=-1).squeeze(0).cpu().numpy()
+    
+    # attributions has shape (batch, seq_len, embedding_dim)
+    # Sum over embedding dimension to get per-token scores
+    token_scores = attributions.detach().abs().sum(dim=-1).squeeze(0).cpu().numpy()
     toks = tokenizer.convert_ids_to_tokens(enc["input_ids"][0])
     return token_scores, toks
 

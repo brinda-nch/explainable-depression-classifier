@@ -1,0 +1,10 @@
+*.bin
+*.safetensors
+*.pt
+*.pth
+*.arrow
+__pycache__/
+.venv/
+venv/
+.DS_Store
+results/runs/*/checkpoint-*/
