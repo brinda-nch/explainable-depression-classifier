@@ -24,20 +24,20 @@ def _map_to_schema(df: pd.DataFrame) -> pd.DataFrame:
         df["user_id"] = pd.Series(range(len(df)), dtype=str)
 
     # text
-    text_candidates = ["body", "text", "selftext", "content", "post", "title"]
+    text_candidates = ["clean_text", "body", "text", "selftext", "content", "post", "title"]
     text_col = next((c for c in text_candidates if c in df.columns), None)
     if not text_col:
-        raise ValueError("No text column found (tried body/text/selftext/content/post/title).")
+        raise ValueError("No text column found (tried clean_text/body/text/selftext/content/post/title).")
     df = df.rename(columns={text_col: "text"})
 
     # label -> int {0,1}
     if "label" not in df.columns:
-        for cand in ["target", "y", "depression_label", "is_depressed", "class"]:
+        for cand in ["is_depression", "target", "y", "depression_label", "is_depressed", "class"]:
             if cand in df.columns:
                 df = df.rename(columns={cand: "label"})
                 break
     if "label" not in df.columns:
-        raise ValueError("No label column found (expected label/target/y/depression_label/is_depressed/class).")
+        raise ValueError("No label column found (expected label/is_depression/target/y/depression_label/is_depressed/class).")
 
     mapping = {
         True: 1, False: 0,

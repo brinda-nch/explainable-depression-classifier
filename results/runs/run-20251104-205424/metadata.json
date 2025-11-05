@@ -1,0 +1,23 @@
+{
+  "timestamp": "20251104-205424",
+  "run_name": "run-20251104-205424",
+  "git": {
+    "is_git_repo": true,
+    "commit": "79dad4941f34d28c2ca1da535b91fca5a864c3eb",
+    "branch": "main",
+    "dirty": true
+  },
+  "versions": {
+    "python": "3.9.6 (default, Apr 30 2025, 02:07:17)  [Clang 17.0.0 (clang-1700.0.13.5)]",
+    "platform": "macOS-26.1-arm64-arm-64bit",
+    "torch": "2.8.0",
+    "cuda_available": false,
+    "device_count": 0,
+    "device_name_0": "CPU",
+    "transformers": "4.57.1"
+  },
+  "env": {
+    "PYTHONHASHSEED": "42",
+    "CUBLAS_WORKSPACE_CONFIG": ":4096:8"
+  }
+}

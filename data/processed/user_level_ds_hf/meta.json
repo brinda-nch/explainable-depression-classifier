@@ -1,0 +1,9 @@
+{
+  "source": "hugginglearners/reddit-depression-cleaned",
+  "total_users": 7731,
+  "splits": {
+    "train": 5411,
+    "val": 1160,
+    "test": 1160
+  }
+}

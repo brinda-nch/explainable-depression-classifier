@@ -1,0 +1,24 @@
+{
+  "citation": "",
+  "description": "",
+  "features": {
+    "text": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "label": {
+      "dtype": "int64",
+      "_type": "Value"
+    },
+    "user_id": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "dominant_subreddit": {
+      "dtype": "string",
+      "_type": "Value"
+    }
+  },
+  "homepage": "",
+  "license": ""
+}

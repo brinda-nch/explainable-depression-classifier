@@ -1,0 +1,78 @@
+python - <<'PY'
+import json, numpy as np, pandas as pd
+from datasets import Dataset
+from sklearn.metrics import accuracy_score, precision_recall_fscore_support, roc_auc_score, average_precision_score, confusion_matrix
+from transformers import AutoTokenizer, AutoModelForSequenceClassification, Trainer, TrainingArguments, DataCollatorWithPadding
+
+def compute_metrics(pred):
+    y = pred.label_ids
+    probs = pred.predictions
+    if probs.ndim == 1:  # some TF/ONNX paths
+        probs = np.vstack([1-probs, probs]).T
+    preds = probs.argmax(axis=1)
+    acc = accuracy_score(y, preds)
+    prec, rec, f1, _ = precision_recall_fscore_support(y, preds, average="macro", zero_division=0)
+    auroc = roc_auc_score(y, probs[:,1])
+    auprc = average_precision_score(y, probs[:,1])
+    return {"accuracy": acc, "precision": prec, "recall": rec, "f1_macro": f1, "auroc": auroc, "auprc": auprc}
+
+# load data
+test = pd.read_json("data/processed/test.jsonl", lines=True)
+ds_test = Dataset.from_pandas(test)
+
+# model + tok (use the path you trained to; change if different)
+ckpt = "results/runs/distilbert"
+tok = AutoTokenizer.from_pretrained(ckpt)
+model = AutoModelForSequenceClassification.from_pretrained(ckpt, num_labels=2)
+
+def tok_fn(b): return tok(b["text"], truncation=True, padding="max_length", max_length=256)
+ds_test = ds_test.map(tok_fn, batched=True)
+
+trainer = Trainer(
+    model=model,
+    args=TrainingArguments(output_dir="results/runs/distilbert_eval", per_device_eval_batch_size=16),
+    eval_dataset=ds_test,
+    tokenizer=tok,
+    data_collator=DataCollatorWithPadding(tok),
+    compute_metrics=compute_metrics
+)
+metrics = trainer.evaluate()
+print("TEST:", metrics)
+
+# Save confusion matrix + PR curve
+import matplotlib.pyplot as plt
+pred = trainer.predict(ds_test)
+y = pred.label_ids
+probs = pred.predictions[:,1]
+y_hat = (probs >= 0.5).astype(int)
+
+cm = confusion_matrix(y, y_hat)
+plt.imshow(cm, cmap="Blues"); plt.title("Confusion Matrix - DistilBERT (test)")
+plt.savefig("results/figures/cm_distilbert_test.png"); plt.close()
+
+from sklearn.metrics import precision_recall_curve
+p, r, _ = precision_recall_curve(y, probs)
+plt.plot(r, p); plt.xlabel("Recall"); plt.ylabel("Precision"); plt.title("PR Curve - DistilBERT (test)")
+plt.savefig("results/figures/pr_distilbert_test.png"); plt.close()
+
+# Append to baselines table
+row = {"model":"DistilBERT(test)", **{k:v for k,v in metrics.items() if k.startswith("eval_")}}
+df = pd.DataFrame([{
+  "model": "DistilBERT(test)",
+  "accuracy": metrics["eval_accuracy"],
+  "precision": metrics["eval_precision"],
+  "recall": metrics["eval_recall"],
+  "f1_macro": metrics["eval_f1_macro"],
+  "auroc": metrics["eval_auroc"],
+  "auprc": metrics["eval_auprc"],
+}])
+import os
+os.makedirs("results/tables", exist_ok=True)
+csv = "results/tables/baselines.csv"
+try:
+    old = pd.read_csv(csv)
+    pd.concat([old, df], ignore_index=True).to_csv(csv, index=False)
+except Exception:
+    df.to_csv(csv, index=False)
+print("Saved figures + updated baselines.csv")
+PY
